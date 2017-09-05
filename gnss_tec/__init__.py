@@ -7,6 +7,9 @@ from .gnss import BAND_PRIORITY
 from .rinex import ObsFileV2
 from .rinex import ObsFileV3
 
+# Shortcut
+from .glo import collect_freq_nums
+
 # General information
 __version__ = '1.0.0'
 __author__ = __maintainer__ = 'Ilya Zhivetiev'
@@ -26,8 +29,8 @@ def rnx(file, band_priority=BAND_PRIORITY, glo_freq_nums=None):
 
     Returns
     -------
-    reader : iter
-        Yields Tec object for each satellite of an epoch.
+    reader : iterator
+        Yields Tec object for each satellite of the epoch.
     """
     if glo_freq_nums is None:
         glo_freq_nums = {}

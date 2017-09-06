@@ -2,3 +2,5 @@
 /.idea/
 /.tox/
 /gnss_tec.egg-info/
+/build/
+/dist/

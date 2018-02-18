@@ -5,6 +5,14 @@ from collections import defaultdict
 
 from .dtutils import validate_epoch, get_microsec
 
+__all__ = [
+    'collect_freq_nums',
+]
+
+
+class NavigationFileError(Exception):
+    pass
+
 
 def _is_string_like(obj):
     """Check whether obj behaves like a string."""
@@ -78,8 +86,22 @@ def _next_nav_mgs(file):
             data = [val.replace('d', 'e') for val in data]
 
             yield slot_num, epoch, float(data[7])
+
         except StopIteration:
             break
+
+
+def _read_version_type(file_handler):
+    file_handler.seek(0)
+    line = file_handler.readline()
+
+    try:
+        rnx_ver, rnx_type = float(line[0:10]), line[20]
+    except (IndexError, ValueError) as err:
+        msg = "Can't read navigation file: {error}".format(error=err)
+        raise NavigationFileError(msg)
+
+    return rnx_ver, rnx_type
 
 
 def collect_freq_nums(file):
@@ -108,16 +130,34 @@ def collect_freq_nums(file):
     else:
         file_handler = file
 
-    _skip_header(file_handler)
+    try:
+        rnx_version, rnx_type = _read_version_type(file_handler)
 
-    freq_num_timestamps = defaultdict(dict)
-    for slot, epoch, f_num in _next_nav_mgs(file_handler):
-        if f_num in freq_num_timestamps[slot]:
-            continue
-        freq_num_timestamps[slot][f_num] = epoch
+        if rnx_version > 2.11:
+            msg = ("Can't read the file: "
+                   "version {version} is unsupported.").format(
+                version=rnx_version,
+            )
+            raise NavigationFileError(msg)
 
-    if f_own:
-        file_handler.close()
+        if rnx_type != 'G':
+            msg = ("Can't read the file: "
+                   "type {type} is unsupported.").format(
+                type=rnx_type,
+            )
+            raise NavigationFileError(msg)
+
+        _skip_header(file_handler)
+
+        freq_num_timestamps = defaultdict(dict)
+        for slot, epoch, f_num in _next_nav_mgs(file_handler):
+            if f_num in freq_num_timestamps[slot]:
+                continue
+            freq_num_timestamps[slot][f_num] = epoch
+
+    finally:
+        if f_own:
+            file_handler.close()
 
     frequency_numbers = defaultdict(dict)
     for slot in freq_num_timestamps:

@@ -5,11 +5,13 @@ from datetime import datetime
 from io import StringIO
 import pytest
 
-from gnss_tec.glo import fetch_slot_freq_num
+from gnss_tec.glo import (fetch_slot_freq_num, _read_version_type,
+                          NavigationFileError)
 from gnss_tec.glo import collect_freq_nums
 
 
-def test_collect_freq_nums():
+@pytest.fixture
+def nav_fh():
     nav_file = '''\
      2.01           GLONASS NAV DATA                        RINEX VERSION / TYPE
 CCRINEXG V1.4 UX    CDDIS               09-MAR-16 12:44     PGM / RUN BY / DATE 
@@ -35,7 +37,24 @@ teqc  2013Mar15     GPS Operator        20160102  0:05:     COMMENT
    -0.192305532227D+05 0.185273551941D+01-0.931322574615D-09 0.500000000000D+01
    -0.137629448242D+05-0.285944557190D+01 0.186264514923D-08 0.000000000000D+00
 '''
-    freq_nums = collect_freq_nums(StringIO(nav_file))
+    return StringIO(nav_file)
+
+
+def test_read_version_type(nav_fh):
+    v, t = _read_version_type(nav_fh)
+
+    assert v == 2.01
+    assert t == 'G'
+
+    with pytest.raises(NavigationFileError):
+        _read_version_type(StringIO('     2.01          '))
+
+    with pytest.raises(NavigationFileError):
+        _read_version_type(StringIO('Broken version'))
+
+
+def test_collect_freq_nums(nav_fh):
+    freq_nums = collect_freq_nums(nav_fh)
     std_freq_nums = {
         1: {datetime(2016, 1, 1, 0, 15): 1},
         2: {datetime(2016, 1, 1, 0, 15): -4},
@@ -43,6 +62,24 @@ teqc  2013Mar15     GPS Operator        20160102  0:05:     COMMENT
     }
 
     assert freq_nums == std_freq_nums
+
+
+def test_unsupported_nav_file():
+    v3 = '''\
+     3.03           NAVIGATION DATA     M (Mixed)           RINEX VERSION / TYPE
+                                                            END OF HEADER
+'''
+    v2_gps = '''\
+     2              NAVIGATION DATA                         RINEX VERSION / TYPE
+CCRINEXN V1.6.0 UX  CDDIS               14-FEB-11 15:33     PGM / RUN BY / DATE 
+                                                                END OF HEADER       
+'''
+
+    with pytest.raises(NavigationFileError):
+        collect_freq_nums(StringIO(v3))
+
+    with pytest.raises(NavigationFileError):
+        collect_freq_nums(StringIO(v2_gps))
 
 
 def test_fetch_slot_freq_num():

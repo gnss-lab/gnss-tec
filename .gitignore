@@ -1,6 +1,12 @@
 /.cache/
 /.idea/
+
 /.tox/
-/gnss_tec.egg-info/
 /build/
 /dist/
+/gnss_tec.egg-info/
+
+_data/
+_design/
+_issues/
+_publication/

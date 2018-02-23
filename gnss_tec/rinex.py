@@ -248,17 +248,19 @@ class ObsFileV2(ObsFile):
 
         timestamp = validate_epoch(timestamp)
 
-        list_of_sats = row[32:69].rstrip()
+        list_of_sats = row[32:68].rstrip()
         rows_to_read = math.ceil(n_of_sats / 12.) - 1
         if rows_to_read > 0:
             while rows_to_read > 0:
                 row = next(self.fh)
-                list_of_sats += row[32:69].rstrip()
+                list_of_sats += row[32:68].rstrip()
                 rows_to_read -= 1
 
         list_of_sats = [list_of_sats[i:i + 3] for i in
                         range(0, len(list_of_sats), 3)]
-        assert len(list_of_sats) == n_of_sats
+
+        msg = "Epoch's num of sats != actual num of sats"
+        assert len(list_of_sats) == n_of_sats, msg
 
         return timestamp, epoch_flag, n_of_sats, list_of_sats
 
@@ -289,13 +291,14 @@ class ObsFileV2(ObsFile):
                             obs_types += row[6:60]
                             rows_to_read -= 1
                     obs_types = obs_types.split()
+
         except StopIteration:
             warn_msg = ("tec: Can't find '# / TYPES OF OBSERV'; "
                         "unexpected end of the file.")
             warnings.warn(warn_msg)
             raise StopIteration
         except ValueError:
-            msg = "{program}: Couldn't extract '# / TYPES OF OBSERV'"
+            msg = "tec: Can't extract '# / TYPES OF OBSERV'"
             raise ValueError(msg)
 
         msg = "Some obs types are missing."

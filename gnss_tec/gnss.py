@@ -2,7 +2,7 @@
 """
 GNSS codes and frequencies.
 """
-import types
+from types import MappingProxyType
 
 GPS = 'G'
 GLO = 'R'
@@ -16,7 +16,7 @@ NNSS = 'T'
 MIX = 'M'
 
 # Hz
-FREQUENCY = {
+FREQUENCY = MappingProxyType({
     GPS: {
         1: 1575.42e+06,
         2: 1227.60e+06,
@@ -59,10 +59,9 @@ FREQUENCY = {
         5: 1176.45e+06,
         9: 2492.028e+06,
     },
-}
-FREQUENCY = types.MappingProxyType(FREQUENCY)
+})
 
-BAND_PRIORITY = {
+BAND_PRIORITY = MappingProxyType({
     GPS: ((1, 2), (1, 5)),
     GLO: ((1, 2), (1, 3)),
     GAL: ((1, 5), (1, 7), (1, 8), (1, 6)),
@@ -70,5 +69,4 @@ BAND_PRIORITY = {
     QZSS: ((1, 2), (1, 5), (1, 6)),
     BDS: ((2, 7), (2, 6)),
     IRNSS: ((5, 9),),
-}
-BAND_PRIORITY = types.MappingProxyType(BAND_PRIORITY)
+})

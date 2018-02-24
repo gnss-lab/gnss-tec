@@ -2,12 +2,12 @@
 """Classes to read RINEX files."""
 import math
 import warnings
-from datetime import timedelta
 from collections import namedtuple, defaultdict
+from datetime import timedelta
 
-from .gnss import *
 from .dtutils import validate_epoch, get_microsec
 from .glo import fetch_slot_freq_num
+from .gnss import *
 from .tec import Tec
 
 
@@ -48,27 +48,10 @@ class ObsFile(object):
         self.band_priority = band_priority
 
         if pr_obs_priority is None:
+            # TODO: add fallback to default
             self.pr_obs_priority = {
-                GPS: (
-                    ('P', 'P'),
-                    ('C', 'C'),
-                    ('C', 'P')
-                ),
-                GLO: (
-                    ('P', 'P'),
-                    ('C', 'C'),
-                    ('C', 'P')
-                ),
-                GAL: (
-                    ('P', 'P'),
-                    ('C', 'C'),
-                    ('C', 'P')
-                ),
-                SBAS: (
-                    ('P', 'P'),
-                    ('C', 'C'),
-                    ('C', 'P')
-                ),
+                system: (('P', 'P'), ('C', 'C'), ('C', 'P'))
+                for system in (GPS, GLO, GAL, SBAS, BDS, QZSS, IRNSS)
             }
         else:
             self.pr_obs_priority = pr_obs_priority

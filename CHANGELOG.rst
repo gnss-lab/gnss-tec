@@ -9,3 +9,6 @@ Bug fixes
 
 - Fix epoch record reading error.
   (`#2 <https://github.com/gnss-lab/gnss-tec/issues/2>`_)
+
+- Fix pseudorange priority retrieve error.
+  (`#3 <https://github.com/gnss-lab/gnss-tec/issues/3>`_)

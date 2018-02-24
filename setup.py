@@ -46,6 +46,8 @@ setup(
 
     packages=find_packages(exclude=['docs', 'tests']),
 
+    include_package_data=True,
+
     install_requires=[],
 
     python_requires='>=3',

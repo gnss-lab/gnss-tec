@@ -11,7 +11,7 @@ from .rinex import ObsFileV3
 from .glo import collect_freq_nums
 
 # General information
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 __author__ = __maintainer__ = 'Ilya Zhivetiev'
 __email__ = 'i.zhivetiev@gnss-lab.org'
 

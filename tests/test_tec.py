@@ -11,9 +11,9 @@ from io import StringIO
 import pytest
 
 from gnss_tec import rnx
+from gnss_tec.glo import collect_freq_nums
 from gnss_tec.tec import Tec
 from gnss_tec.tec import TecError
-from gnss_tec.glo import collect_freq_nums
 
 TEST_RINEX = '''\
      2.11           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE

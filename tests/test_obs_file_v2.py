@@ -1,9 +1,9 @@
 # coding=utf8
 """Functions to test tec.rinex.ObsFileV2 class."""
 
+import datetime
 from io import StringIO
 
-import datetime
 import pytest
 
 from gnss_tec.rinex import ObsFileV2

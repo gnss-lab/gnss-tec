@@ -1,3 +1,12 @@
+gnss-tec v1.0.2
+===============
+
+Bug fixes
+---------
+
+- Fix crash on absent GLONASS slot number.
+  (`#4 <https://github.com/gnss-lab/gnss-tec/issues/4>`_)
+
 gnss-tec v1.0.1
 ===============
 

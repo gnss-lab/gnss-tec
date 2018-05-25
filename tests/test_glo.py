@@ -3,11 +3,12 @@
 
 from datetime import datetime
 from io import StringIO
+
 import pytest
 
+from gnss_tec.glo import collect_freq_nums
 from gnss_tec.glo import (fetch_slot_freq_num, _read_version_type,
                           NavigationFileError)
-from gnss_tec.glo import collect_freq_nums
 
 
 @pytest.fixture
@@ -36,8 +37,24 @@ teqc  2013Mar15     GPS Operator        20160102  0:05:     COMMENT
     0.948807763672D+04-0.397904396057D+00-0.931322574615D-09 0.000000000000D+00
    -0.192305532227D+05 0.185273551941D+01-0.931322574615D-09 0.500000000000D+01
    -0.137629448242D+05-0.285944557190D+01 0.186264514923D-08 0.000000000000D+00
+ 3 16  1  1  2 15  0.0 0.588288530707D-04 0.000000000000D+00 0.200000000000D+01
+    0.948807763672D+04-0.397904396057D+00-0.931322574615D-09 0.000000000000D+00
+   -0.192305532227D+05 0.185273551941D+01-0.931322574615D-09 0.600000000000D+01
+   -0.137629448242D+05-0.285944557190D+01 0.186264514923D-08 0.000000000000D+00 
 '''
     return StringIO(nav_file)
+
+
+@pytest.fixture
+def std_freq_nums():
+    return {
+        1: {datetime(2016, 1, 1, 0, 15): 1},
+        2: {datetime(2016, 1, 1, 0, 15): -4},
+        3: {
+            datetime(2016, 1, 1, 0, 15): 5,
+            datetime(2016, 1, 1, 2, 15): 6,
+        },
+    }
 
 
 def test_read_version_type(nav_fh):
@@ -53,14 +70,8 @@ def test_read_version_type(nav_fh):
         _read_version_type(StringIO('Broken version'))
 
 
-def test_collect_freq_nums(nav_fh):
+def test_collect_freq_nums(nav_fh, std_freq_nums):
     freq_nums = collect_freq_nums(nav_fh)
-    std_freq_nums = {
-        1: {datetime(2016, 1, 1, 0, 15): 1},
-        2: {datetime(2016, 1, 1, 0, 15): -4},
-        3: {datetime(2016, 1, 1, 0, 15): 5},
-    }
-
     assert freq_nums == std_freq_nums
 
 
@@ -110,12 +121,22 @@ def test_fetch_slot_freq_num():
         )
         assert std_fn == freq_num
 
-    with pytest.raises(KeyError):
-        fetch_slot_freq_num(std[0][0], 5, glo_freq_nums)
 
-    with pytest.raises(ValueError):
+def test_fetch_slot_num_key_error(nav_fh):
+    glo_freq_nums = collect_freq_nums(nav_fh)
+    timestamp = datetime(2016, 1, 1, 0, 15)
+    with pytest.raises(KeyError, match="Can't find slot"):
+        fetch_slot_freq_num(
+            timestamp=timestamp,
+            slot=5,
+            freq_nums=glo_freq_nums,
+        )
+
+
+def test_fetch_slot_num_value_error(std_freq_nums):
+    with pytest.raises(ValueError, match="Can't find GLONASS frequency"):
         fetch_slot_freq_num(
             datetime(2017, 12, 8, 0, 0, 0),
             2,
-            glo_freq_nums,
+            std_freq_nums,
         )

@@ -7,6 +7,7 @@ from .dtutils import validate_epoch, get_microsec
 
 __all__ = [
     'collect_freq_nums',
+    'fetch_slot_freq_num',
 ]
 
 
@@ -166,7 +167,10 @@ def collect_freq_nums(file):
         frequency_numbers[slot] = dict(zip(t_stamps, f_nums))
 
     del freq_num_timestamps
-    return frequency_numbers
+
+    # frequency_numbers[<unknown_key>] produces {} so
+    # we convert defaultdict to dict to avoid possible errors
+    return dict(frequency_numbers)
 
 
 def fetch_slot_freq_num(timestamp, slot, freq_nums):

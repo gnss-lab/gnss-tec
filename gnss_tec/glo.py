@@ -15,6 +15,10 @@ class NavigationFileError(Exception):
     pass
 
 
+class FetchSlotFreqNumError(Exception):
+    pass
+
+
 def _is_string_like(obj):
     """Check whether obj behaves like a string."""
     try:
@@ -187,14 +191,18 @@ def fetch_slot_freq_num(timestamp, slot, freq_nums):
     Returns
     -------
     freq_num : int
+
+    Raises
+    ------
+    FetchSlotFreqNumError in case we can't find frequency number of the slot.
     """
     freq_num = None
 
     try:
         slot_freq_nums = freq_nums[slot]
     except KeyError:
-        msg = "Can't find slot {} in the glo_freq_nums dict."
-        raise KeyError(msg)
+        msg = "Can't find slot {} in the glo_freq_nums dict.".format(slot)
+        raise FetchSlotFreqNumError(msg)
 
     dates_times = sorted(slot_freq_nums.keys())
     for ts in dates_times:
@@ -212,4 +220,4 @@ def fetch_slot_freq_num(timestamp, slot, freq_nums):
         return freq_num
     else:
         msg = "Can't find GLONASS frequency number for {}.".format(slot)
-        raise ValueError(msg)
+        raise FetchSlotFreqNumError(msg)

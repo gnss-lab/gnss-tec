@@ -6,7 +6,7 @@ from collections import namedtuple, defaultdict
 from datetime import timedelta
 
 from .dtutils import validate_epoch, get_microsec
-from .glo import fetch_slot_freq_num
+from .glo import fetch_slot_freq_num, FetchSlotFreqNumError
 from .gnss import *
 from .tec import Tec
 
@@ -323,13 +323,17 @@ class ObsFileV2(ObsFile):
                 observations = self._split_observations_row(observations_row)
 
                 freq_num = None
-                if sat_sys == GLO:
-                    slot = int(satellite[1:])
-                    freq_num = fetch_slot_freq_num(
-                        timestamp,
-                        slot,
-                        self.glo_freq_nums,
-                    )
+                try:
+                    if sat_sys == GLO:
+                        slot = int(satellite[1:])
+                        freq_num = fetch_slot_freq_num(
+                            timestamp,
+                            slot,
+                            self.glo_freq_nums,
+                        )
+                except FetchSlotFreqNumError as err:
+                    warnings.warn(str(err))
+                    continue
 
                 # TODO: обернуть в одну ф-цию
                 try:
@@ -791,14 +795,17 @@ class ObsFileV3(ObsFile):
                 observations = self._parse_obs_record(row)
                 sat_sys = observations.satellite[0]
 
+                freq_num = None
                 if sat_sys == GLO:
-                    freq_num = fetch_slot_freq_num(
-                        timestamp,
-                        int(observations.satellite[1:]),
-                        self.glo_freq_nums,
-                    )
-                else:
-                    freq_num = None
+                    try:
+                        freq_num = fetch_slot_freq_num(
+                            timestamp,
+                            int(observations.satellite[1:]),
+                            self.glo_freq_nums,
+                        )
+                    except FetchSlotFreqNumError as err:
+                        warnings.warn(str(err))
+                        continue
 
                 tec = Tec(
                     timestamp,

@@ -6,7 +6,7 @@ from io import StringIO
 
 import pytest
 
-from gnss_tec.glo import collect_freq_nums
+from gnss_tec.glo import collect_freq_nums, FetchSlotFreqNumError
 from gnss_tec.glo import (fetch_slot_freq_num, _read_version_type,
                           NavigationFileError)
 
@@ -125,7 +125,7 @@ def test_fetch_slot_freq_num():
 def test_fetch_slot_num_key_error(nav_fh):
     glo_freq_nums = collect_freq_nums(nav_fh)
     timestamp = datetime(2016, 1, 1, 0, 15)
-    with pytest.raises(KeyError, match="Can't find slot"):
+    with pytest.raises(FetchSlotFreqNumError, match="Can't find slot"):
         fetch_slot_freq_num(
             timestamp=timestamp,
             slot=5,
@@ -134,7 +134,8 @@ def test_fetch_slot_num_key_error(nav_fh):
 
 
 def test_fetch_slot_num_value_error(std_freq_nums):
-    with pytest.raises(ValueError, match="Can't find GLONASS frequency"):
+    with pytest.raises(FetchSlotFreqNumError,
+                       match="Can't find GLONASS frequency"):
         fetch_slot_freq_num(
             datetime(2017, 12, 8, 0, 0, 0),
             2,

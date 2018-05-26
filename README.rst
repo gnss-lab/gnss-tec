@@ -51,4 +51,4 @@ Distributed under the terms of the
 `MIT <https://github.com/gnss-lab/gnss-tec/blob/master/LICENSE.txt>`_
 license, gnss-tec is free and open source software.
 
-Copyright Ilya Zhivetiev, 2017.
+Copyright Ilya Zhivetiev, 2018.

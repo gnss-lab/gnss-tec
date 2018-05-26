@@ -3,15 +3,14 @@
 using data derived from global navigation satellite systems."""
 import warnings
 
+# Shortcut
+from .glo import collect_freq_nums
 from .gnss import BAND_PRIORITY
 from .rinex import ObsFileV2
 from .rinex import ObsFileV3
 
-# Shortcut
-from .glo import collect_freq_nums
-
 # General information
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 __author__ = __maintainer__ = 'Ilya Zhivetiev'
 __email__ = 'i.zhivetiev@gnss-lab.org'
 

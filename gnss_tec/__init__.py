@@ -10,7 +10,7 @@ from .rinex import ObsFileV2
 from .rinex import ObsFileV3
 
 # General information
-__version__ = '1.0.2'
+__version__ = '1.1.0'
 __author__ = __maintainer__ = 'Ilya Zhivetiev'
 __email__ = 'i.zhivetiev@gnss-lab.org'
 

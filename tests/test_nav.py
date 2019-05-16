@@ -28,8 +28,7 @@ def test_skip_header_unexpected_end(nav_object):
         next(nav_object.stream)
     with raises(
             NavMessageFileError,
-            message="Expecting NavMessageFileError",
-            match="Unexpected end of the navigation file."
+            match="Unexpected end of the navigation file.",
     ):
         nav_object._skip_header()
 

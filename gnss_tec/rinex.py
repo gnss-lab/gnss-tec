@@ -74,8 +74,7 @@ class ObsFile(object):
                 if header_label == 'END OF HEADER':
                     break
         except StopIteration:
-            warnings.warn("{program}: Couldn't find 'END OF HEADER'")
-            raise StopIteration
+            raise ValueError("{program}: Couldn't find 'END OF HEADER'")
 
     def retrieve_obs_types(self):
         pass
@@ -91,8 +90,7 @@ class ObsFile(object):
                 if header_label == 'TIME OF FIRST OBS':
                     time_system = row[48:51]
         except StopIteration:
-            warnings.warn("ObsFile: Couldn't find 'TIME OF FIRST OBS'")
-            raise StopIteration
+            raise ValueError("ObsFile: Couldn't find 'TIME OF FIRST OBS'")
 
         self.fh.seek(0)
         return time_system
@@ -276,13 +274,10 @@ class ObsFileV2(ObsFile):
                     obs_types = obs_types.split()
 
         except StopIteration:
-            warn_msg = ("tec: Can't find '# / TYPES OF OBSERV'; "
-                        "unexpected end of the file.")
-            warnings.warn(warn_msg)
-            raise StopIteration
+            raise ValueError("tec: Can't find '# / TYPES OF OBSERV'; "
+                             "unexpected end of the file.")
         except ValueError:
-            msg = "tec: Can't extract '# / TYPES OF OBSERV'"
-            raise ValueError(msg)
+            raise ValueError("tec: Can't extract '# / TYPES OF OBSERV'")
 
         msg = "Some obs types are missing."
         assert num_of_types == len(obs_types), msg
@@ -293,10 +288,11 @@ class ObsFileV2(ObsFile):
     def next_tec(self):
         """Yields Tec object."""
         while 1:
-            (timestamp,
-             epoch_flag,
-             n_of_sats,
-             list_of_sats) = self._parse_epoch_record()
+            try:
+                (timestamp, epoch_flag,
+                 n_of_sats, list_of_sats) = self._parse_epoch_record()
+            except StopIteration:
+                return
 
             if epoch_flag > 1:
                 self.handle_event(epoch_flag, n_of_sats)
@@ -671,12 +667,8 @@ class ObsFileV3(ObsFile):
                     obs_types_rows += row
 
         except StopIteration:
-            warn_msg = (
-                "tec: Can't find 'SYS / # / OBS TYPES'; "
-                "unexpected end of the file."
-            )
-            warnings.warn(warn_msg)
-            raise StopIteration
+            raise ValueError("tec: Can't find 'SYS / # / OBS TYPES'; "
+                             "unexpected end of the file.")
 
         obs_types_records = []
         for line in obs_types_rows.split('\n'):
@@ -773,7 +765,10 @@ class ObsFileV3(ObsFile):
         obs_indices = {}
 
         while True:
-            row = next(self.fh)
+            try:
+                row = next(self.fh)
+            except StopIteration:
+                return
 
             if not self._is_epoch_record(row):
                 msg = 'Unexpected format of the record: {row}'

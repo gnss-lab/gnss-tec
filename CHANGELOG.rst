@@ -1,3 +1,11 @@
+gnss-tec v1.1.1
+===============
+
+Bug fixes
+---------
+
+- Fix PEP-479 violation. (`#6 <https://github.com/gnss-lab/gnss-tec/issues/6>`_)
+
 gnss-tec v1.1.0
 ===============
 

@@ -7,6 +7,7 @@ from gnss_tec.nav import nav
 __all__ = [
     'collect_freq_nums',
     'fetch_slot_freq_num',
+    'FetchSlotFreqNumError',
 ]
 
 

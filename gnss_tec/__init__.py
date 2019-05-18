@@ -1,7 +1,6 @@
 # coding=utf-8
 """TEC === Tools to calculate total electron content value in the ionosphere
 using data derived from global navigation satellite systems."""
-import warnings
 
 # Shortcut
 from .glo import collect_freq_nums
@@ -10,7 +9,7 @@ from .rinex import ObsFileV2
 from .rinex import ObsFileV3
 
 # General information
-__version__ = '1.1.0'
+__version__ = '1.1.1'
 __author__ = __maintainer__ = 'Ilya Zhivetiev'
 __email__ = 'i.zhivetiev@gnss-lab.org'
 
@@ -40,12 +39,9 @@ def rnx(file, band_priority=BAND_PRIORITY, glo_freq_nums=None):
         rinex_type = row[20]
         # rinex_sat_system = row[40]
     except StopIteration:
-        msg = "rnx: Empty input file"
-        warnings.warn(msg)
-        raise StopIteration
+        raise ValueError("rnx: Empty input file")
     except ValueError:
-        msg = "rnx: Unknown file type"
-        raise ValueError(msg)
+        raise ValueError("rnx: Unknown file type")
 
     if rinex_type.upper() != 'O':
         raise Exception('rnx: Not an observation file')
@@ -61,8 +57,7 @@ def rnx(file, band_priority=BAND_PRIORITY, glo_freq_nums=None):
             reader = rinex_reader[ver]
 
     if reader is None:
-        msg = 'Unknown RINEX version: {}'.format(rinex_version)
-        raise Exception(msg)
+        raise Exception('Unknown RINEX version: {}'.format(rinex_version))
 
     return reader(
         file,

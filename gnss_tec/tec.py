@@ -1,5 +1,6 @@
 # coding=utf8
 """Class to compute total electron content."""
+import numpy as np
 from .gnss import *
 
 
@@ -102,48 +103,79 @@ class Tec(object):
         """Returns TEC factor."""
         return (1 / 40.308 *
                 (f1 ** 2 * f2 ** 2) / (f1 ** 2 - f2 ** 2) * 1.0e-16)
-
+    
     def get_freq(self, obs_code):
+
         """Return frequencies regarding to satellite system."""
         sat_sys = self.satellite[0].upper()
+        return Tec._get_freq(obs_code, sat_sys, self.glo_freq_num)
+    
+    @staticmethod
+    def _get_freq(obs_code, sat_sys, glo_freq_num):
+        """Return frequencies regarding to satellite system."""
+        # sat_sys = self.satellite[0].upper()
         # sat_num = self.satellite[1:]
 
-        if sat_sys not in self.frequency:
+        if sat_sys not in FREQUENCY:
             msg = "Unknown satellite system: '{}'"
             msg = msg.format(sat_sys)
             raise TecError(msg)
 
         freq = {}
         if sat_sys == 'R':
-            k = self.glo_freq_num
+            k = glo_freq_num
             for b in 1, 2:
                 band = int(obs_code[b][1])
                 if band == 3:
-                    freq[b] = self.frequency[sat_sys][band]
+                    freq[b] = FREQUENCY[sat_sys][band]
                 else:
-                    freq[b] = self.frequency[sat_sys][band](k)
+                    freq[b] = FREQUENCY[sat_sys][band](k)
+                    print(band, k)
         else:
             for b in 1, 2:
                 band = int(obs_code[b][1])
-                freq[b] = self.frequency[sat_sys][band]
+                freq[b] = FREQUENCY[sat_sys][band]
 
         return freq
 
     @property
     def phase_tec(self):
         """Return phase TEC value."""
-        speed_of_light = 299792458
-
         for b in 1, 2:
             if self.phase[b] == 0:
                 return None
-
         freq = self.get_freq(self.phase_code)
+        return Tec._calc_phase_tec(self.phase[1], self.phase[2], 
+                                   self.phase_code[1], self.phase_code[2], 
+                                   self.satellite, freq)
 
-        tec_value = (speed_of_light / freq[1] * self.phase[1] -
-                     speed_of_light / freq[2] * self.phase[2])
-
-        return self.factor(freq[1], freq[2]) * tec_value
+    @staticmethod
+    def calc_phase_tec(p1, p2, code1, code2, sat, glofn):
+        """Return phase TEC value."""
+        if p1.shape != p2.shape:
+            raise TecError('Phases are of different shapes')
+        if p1.shape != glofn.shape:
+            raise TecError('Phases are of different shapes')
+        tec = np.zeros_like(p1)
+        freq = {1:np.zeros(p1.shape), 2:np.zeros(p2.shape)}
+        codes = {1: code1, 2: code2}
+        sat_sys = sat[0].upper()
+        for i, k in enumerate(glofn):
+            _freq = Tec._get_freq(codes, sat_sys, k)
+            freq[1][i] = _freq[1]
+            freq[2][i] = _freq[2]
+        tec  = Tec._calc_phase_tec(p1, p2, code1, code2, sat, freq)
+        tec[np.logical_or(p1 == 0, p2 == 0)] = np.nan
+        return tec
+    
+    @staticmethod
+    def _calc_phase_tec(p1, p2, code1, code2, sat, freq):
+        speed_of_light = 299792458
+        sat_sys = sat[0].upper()
+        
+        tec = (speed_of_light / freq[1] * p1 -
+               speed_of_light / freq[2] * p2)
+        return Tec.factor(freq[1], freq[2]) * tec
 
     @property
     def p_range_tec(self):
@@ -151,10 +183,26 @@ class Tec(object):
         for b in 1, 2:
             if self.p_range[b] == 0:
                 return None
-
-        freq = self.get_freq(self.p_range_code)
-        return self.factor(freq[1], freq[2]) * (self.p_range[2] -
-                                                self.p_range[1])
+        return Tec._calc_p_range_tec(self.p_range[1], self.p_range[2],
+                                 self.phase_code[1], self.phase_code[2], 
+                                 self.satellite, self.glo_freq_num)
+    
+    @staticmethod
+    def calc_p_range_tec(r1, r2, code1, code2, sat, glof):
+        """Return phase TEC value."""
+        if r1.shape != r2.shape:
+            raise TecError('Ranges are of different shapes')
+        tec = np.zeros_like(r1)
+        tec  =_calc_p_range_tec(p1, p2, code1, code2, 
+                              sat, glof)
+        tec[np.logical_or(r1 == 0, r2 == 0)] = np.nan
+        return tec
+    
+    @staticmethod
+    def _calc_p_range_tec(r1, r2, code1, code2, sat, glo_freq_num):
+        sat_sys = sat[0].upper()
+        freq = Tec._get_freq({1: code1, 2: code2}, sat_sys, glo_freq_num)
+        return Tec.factor(freq[1], freq[2]) * (r2 - r1)
 
     @property
     def validity(self):

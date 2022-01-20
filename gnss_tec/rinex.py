@@ -2,8 +2,11 @@
 """Classes to read RINEX files."""
 import math
 import warnings
+import numpy as np
+from sys import getsizeof
 from collections import namedtuple, defaultdict
 from datetime import timedelta
+
 
 from .dtutils import validate_epoch, get_microsec
 from .glo import fetch_slot_freq_num, FetchSlotFreqNumError
@@ -50,7 +53,7 @@ class ObsFile(object):
         if pr_obs_priority is None:
             # TODO: add fallback to default
             self.pr_obs_priority = {
-                system: (('P', 'P'), ('C', 'C'), ('C', 'P'))
+                system: (('P', 'P'), ('C', 'C'), ('C', 'P'), ('C', 'L'))
                 for system in (GPS, GLO, GAL, SBAS, BDS, QZSS, IRNSS)
             }
         else:
@@ -276,6 +279,7 @@ class ObsFileV2(ObsFile):
         except StopIteration:
             raise ValueError("tec: Can't find '# / TYPES OF OBSERV'; "
                              "unexpected end of the file.")
+
         except ValueError:
             raise ValueError("tec: Can't extract '# / TYPES OF OBSERV'")
 
@@ -395,7 +399,6 @@ class ObsFileV2(ObsFile):
                     obs = observations[pr_obs_index[sat_sys][b]]
                     obs = self._get_num_value(obs)
                     tec.p_range[b] = obs[0]
-
                 yield tec
 
     def __iter__(self):
@@ -465,6 +468,8 @@ class ObsFileV3(ObsFile):
             band_priority=BAND_PRIORITY,
             pr_obs_priority=None,
             glo_freq_nums=None,
+            timestep=30,
+            timespan=3600*24
     ):
         super(ObsFileV3, self).__init__(
             file,
@@ -492,6 +497,26 @@ class ObsFileV3(ObsFile):
             'observation_indices',
             ['phase', 'pseudo_range'],
         )
+        self.rinex_as_array = None
+        self.sat_sys_shape = None
+        self.timestamps = None
+        self.rinex_freqs = None
+        self.features = None
+        if timestep and timespan:
+            self._generate_obs_arrays(timespan, timestep)
+
+    def _generate_obs_arrays(self, timespan, timestep):
+        ntimes = int(timespan/timestep)
+        self.rinex_as_array = {}
+        self.sat_sys_shape = {}
+        self.features = {}
+        self.rinex_freqs = {}
+        for s, codes in self.obs_types.items():
+            self.rinex_as_array[s] = {}
+            self.sat_sys_shape[s] = (ntimes, len(codes))
+            self.timestamps = {}
+            self.rinex_freqs[s] = {}
+            self.features[s] = {}
 
     def _generate_obs_codes(self):
         """Generate observation codes for the satellite systems."""
@@ -652,7 +677,6 @@ class ObsFileV3(ObsFile):
                 feature[1],
             )
             records.append(obs)
-
         return self._observation_records(sat, tuple(records))
 
     def retrieve_obs_types(self):
@@ -711,7 +735,6 @@ class ObsFileV3(ObsFile):
                 obs_types[sat_sys] = sys_obs_types
 
         except ValueError as err:
-            print(err)
             raise err
 
         del obs_types_records
@@ -740,7 +763,7 @@ class ObsFileV3(ObsFile):
 
         bands = self.bands[sat_system]
         band_priority = self.band_priority[sat_system]
-
+        print(bands, band_priority)
         phase_obs_codes = self.phase_obs_codes[sat_system]
         pr_obs_codes = self.prange_obs_codes[sat_system]
 
@@ -754,15 +777,20 @@ class ObsFileV3(ObsFile):
         for b in bands:
             phase_ot_indices[b] = code(phase_obs_codes[b], obs_types)
             pr_ot_indices[b] = code(pr_obs_codes[b], obs_types)
-
+        print(phase_ot_indices, pr_ot_indices)
         phase_indices = indices(band_priority, phase_ot_indices)
         pr_indices = indices(band_priority, pr_ot_indices)
-
+        _phase = self._obsrevation_indices(phase_indices, pr_indices).phase
+        _range = self._obsrevation_indices(phase_indices, pr_indices).pseudo_range
+        print(sat_system)
+        print(obs_types[_phase[1]], obs_types[_phase[2]])
+        print(obs_types[_range[1]], obs_types[_range[2]])
         return self._obsrevation_indices(phase_indices, pr_indices)
 
     def next_tec(self):
         """Yields Tec object."""
         obs_indices = {}
+        i_epoch = -1
 
         while True:
             try:
@@ -782,7 +810,7 @@ class ObsFileV3(ObsFile):
             if epoch_flag > 1:
                 self.handle_event(epoch_flag, num_of_sat)
                 continue
-
+            i_epoch += 1
             while num_of_sat:
                 num_of_sat -= 1
                 row = next(self.fh)
@@ -801,6 +829,25 @@ class ObsFileV3(ObsFile):
                     except FetchSlotFreqNumError as err:
                         warnings.warn(str(err))
                         continue
+
+                if self.rinex_as_array:
+                    _sat = observations.satellite
+                    recs = observations.records
+                    vals = [r.value for r in recs]
+                    trecs = [r.code for r in recs]
+                    feature = [[r.lli, r.signal_strength] for r in recs]
+                    if _sat not in  self.rinex_as_array[sat_sys]:
+                        arr = np.zeros(self.sat_sys_shape[sat_sys])
+                        freq_arr = np.zeros((self.sat_sys_shape[sat_sys][0], ))
+                        feature_arr = np.zeros(self.sat_sys_shape[sat_sys] + (2, ))
+                        self.rinex_as_array[sat_sys][_sat] = arr
+                        self.rinex_freqs[sat_sys][_sat] = freq_arr
+                        self.features[sat_sys][_sat] = feature_arr 
+                    self.rinex_as_array[sat_sys][_sat][i_epoch, :] = vals[:]
+                    self.timestamps[timestamp] = 1
+                    _freq_num = freq_num if freq_num else np.nan
+                    self.rinex_freqs[sat_sys][_sat][i_epoch] = _freq_num
+                    self.features[sat_sys][_sat][i_epoch, :, :] = feature
 
                 tec = Tec(
                     timestamp,
@@ -828,5 +875,4 @@ class ObsFileV3(ObsFile):
                         obs_indices[sat_sys].pseudo_range[b]]
                     tec.p_range_code[b] = obs.code
                     tec.p_range[b] = obs.value
-
                 yield tec

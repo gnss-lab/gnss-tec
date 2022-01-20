@@ -146,7 +146,7 @@ def nav(file):
             )
         return NavMessageFileV2(file)
 
-    elif 3 <= rnx_version <= 3.03:
+    elif 3 <= rnx_version <= 3.04:
         return NavMessageFileV3(file)
 
     else:

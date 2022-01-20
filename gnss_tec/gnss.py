@@ -64,7 +64,7 @@ FREQUENCY = MappingProxyType({
 BAND_PRIORITY = MappingProxyType({
     GPS: ((1, 2), (1, 5)),
     GLO: ((1, 2), (1, 3)),
-    GAL: ((1, 5), (1, 7), (1, 8), (1, 6)),
+    GAL: ((1, 5), (1, 7), (1, 8), (1, 6), (5, 7)),
     SBAS: ((1, 5),),
     QZSS: ((1, 2), (1, 5), (1, 6)),
     BDS: ((2, 7), (2, 6)),

@@ -1,0 +1,12 @@
+/.cache/
+/.idea/
+
+/.tox/
+/build/
+/dist/
+/gnss_tec.egg-info/
+
+_data/
+_design/
+_issues/
+_publication/

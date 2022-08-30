@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
-import itertools
+import warnings
 from collections import defaultdict
 from .gnss import FREQUENCY, BAND_PRIORITY
 from .tec import Tec
+from .glo import collect_freq_nums
 
 class RinexHandlerError(Exception):
 
@@ -11,7 +12,7 @@ class RinexHandlerError(Exception):
 
 class RinexForSpace(object):
     
-    def __init__(self, observations, codes, features, times, frequencies, **kwargs):
+    def __init__(self, observations, codes, features, times, glofreqnums, **kwargs):
         """Wrapper for rinex as a pandas dataframes
 
         Parameters
@@ -36,42 +37,39 @@ class RinexForSpace(object):
         self.codes = codes
         self.features = features
         self.times = times
-        self.frequencies = frequencies
-        self.dataframe = None
-        self.dataframes = None
+        self.glofreqnums = glofreqnums
+        self.dataframes = dict()
+        self.elaz = defaultdict(dict)
         if kwargs.get('convert_to_pd', False):
-            self.dataframes = self._convert_to_dataframes()
+            self._convert_to_dataframes()
 
 
-    def _convert_to_dataframes(self, make_one=False):
+    def _convert_to_dataframes(self):
         dataframes = defaultdict(dict)
         for s in self.observations:
             for sat in self.observations[s]:
                 if self.observations[s][sat].shape[0] != len(self.times):
                     msg = f'For {sat}  observations and times differs in shape'
                     raise RinexHandlerError(msg)
+                d = {'system': [], 
+                     'sat': [], 
+                     'time': [],
+                     'glofreqnum': []}
+                d['system'] = [s] * len(self.times)
+                d['sat'] = [sat] * len(self.times)
+                d['time'] = self.times[:]
+                d['glofreqnum'] = self.glofreqnums[s][sat][:]
                 for icode, code in enumerate(self.codes[s]):
-                    d = {'system': [], 
-                        'sat': [], 
-                        'time': [],
-                        'code': [], 
-                        'observable':[], 
-                        'feature1': [], 
-                        'feature2': [],
-                        'frequency': []}
-                    d['system'] = [s] * len(self.times)
-                    d['sat'] = [sat] * len(self.times)
-                    d['code'] = [code] * len(self.times)
-                    d['time'] = self.times[:]
-                    d['observable']= self.observations[s][sat][:, icode]
-                    d['feature1'] = self.features[s][sat][:, icode,0]
-                    d['feature2'] = self.features[s][sat][:, icode,1]
-                    d['frequency'] = self.frequencies[s][sat][:]
+                    d.update({code: [], 'fe1'+code: [], 'fe2'+code: []})
+                    d[code]= self.observations[s][sat][:, icode]
+                    d['fe1'+code] = self.features[s][sat][:, icode,0]
+                    d['fe2'+code] = self.features[s][sat][:, icode,1]
                     dataframes[s][sat] = pd.DataFrame(d)
-        if make_one:
-            self.dataframe = pd.concat(dataframes)
-        return dataframes
-
+            dfs = [df for df in dataframes[s].values()]
+            if len(dfs) == 0:
+                warnings.warn(f'For system {s} there are no data')
+            else:
+                self.dataframes[s] = pd.concat(dfs)
 
     def calc_phase_tec(self, combination, sat=None, s=None):
         """
@@ -94,8 +92,8 @@ class RinexForSpace(object):
             for iter_sat in self.observations[s]:
                 p1 = self.observations[s][iter_sat][:, icode1]
                 p2 = self.observations[s][iter_sat][:, icode2]
-                glof = self.frequencies[s][iter_sat]
-                print(glof.shape, p2.shape)
+                glof = self.glofreqnums[s][iter_sat]
+                
                 tec = Tec.calc_phase_tec(p1, p2, 
                                          combination[0], combination[1], 
                                          iter_sat, glof)
@@ -144,6 +142,55 @@ class RinexForSpace(object):
                     #    data = self.observations[s][sat][:, ic]
                     #   prange_codes[s][code] = np.count_nonzero(data)
                     
+    def add_elaz(self, site_pos, navs, xyz_to_el_az):
+        for sat_sys, sats_data  in self.observations.items():
+            for sat, data in sats_data.items():
+                self.elaz[sat_sys][sat] = []
+                for time in self.times:
+                    sat_pos = get_sat_pos(dt_time, satellite, navs)
+                    el_deg, az_deg = xyz_to_el_az(site_pos, sat_pos)
+                    self.elaz[sat_sys][sat].append((el_deg, az_deg))
+                
+            
 
-    def calc_phase_tec_pd(self, combination):
-        pass
+    def calc_tec_pd(self, combinations, tec_type):
+        """Calculates phase tec 
+
+        Parameters
+        ----------
+        combination : dict of list of tuples
+        Keys are system letter. Values are list each element of which is 
+        a pair of codes.
+        
+        Example: {G: [(L1, L2), (L2, L5)], C: [(L2I, L7I)]}
+        """
+        if tec_type == 'phase':
+            calc_tec = Tec.calc_phase_tec
+        elif tec_type == 'range':
+            calc_tec = Tec.calc_p_range_tec
+        else:
+            raise ValueError(f'Unknown tec type {tec_type}')
+        for s in self.dataframes:
+            if not s in combinations:
+                continue
+            sdf = self.dataframes[s]
+            codes = combinations[s]
+            sats  = list(set(list(self.dataframes[s]['sat'])))
+            for pair in codes:
+                if not (pair[0] in self.dataframes[s] and 
+                        pair[1] in self.dataframes[s]):
+                    continue
+
+                if tec_type == 'phase':
+                    tec_code = 'ptec'+pair[0]+pair[1]
+                else:
+                    tec_code = 'rtec'+pair[0]+pair[1]
+                self.dataframes[s][tec_code] = 0
+                for sat in sats:
+                    obs1 = sdf.loc[sdf['sat'] == sat][pair[0]]
+                    obs2 = sdf.loc[sdf['sat'] == sat][pair[1]]
+                    glofn = sdf.loc[sdf['sat'] == sat]['glofreqnum']
+                    tecs =  calc_tec(obs1, obs2, 
+                                     pair[0], pair[1], 
+                                     sat, glofn)
+                    sdf.loc[sdf['sat'] == sat, tec_code] = tecs

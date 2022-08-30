@@ -500,7 +500,7 @@ class ObsFileV3(ObsFile):
         self.rinex_as_array = None
         self.sat_sys_shape = None
         self.timestamps = None
-        self.rinex_freqs = None
+        self.rinex_glofreqnum = None
         self.features = None
         if timestep and timespan:
             self._generate_obs_arrays(timespan, timestep)
@@ -510,12 +510,12 @@ class ObsFileV3(ObsFile):
         self.rinex_as_array = {}
         self.sat_sys_shape = {}
         self.features = {}
-        self.rinex_freqs = {}
+        self.rinex_glofreqnum = {}
         for s, codes in self.obs_types.items():
             self.rinex_as_array[s] = {}
             self.sat_sys_shape[s] = (ntimes, len(codes))
             self.timestamps = {}
-            self.rinex_freqs[s] = {}
+            self.rinex_glofreqnum[s] = {}
             self.features[s] = {}
 
     def _generate_obs_codes(self):
@@ -836,17 +836,17 @@ class ObsFileV3(ObsFile):
                     vals = [r.value for r in recs]
                     trecs = [r.code for r in recs]
                     feature = [[r.lli, r.signal_strength] for r in recs]
-                    if _sat not in  self.rinex_as_array[sat_sys]:
+                    if _sat not in self.rinex_as_array[sat_sys]:
                         arr = np.zeros(self.sat_sys_shape[sat_sys])
                         freq_arr = np.zeros((self.sat_sys_shape[sat_sys][0], ))
                         feature_arr = np.zeros(self.sat_sys_shape[sat_sys] + (2, ))
                         self.rinex_as_array[sat_sys][_sat] = arr
-                        self.rinex_freqs[sat_sys][_sat] = freq_arr
+                        self.rinex_glofreqnum[sat_sys][_sat] = freq_arr
                         self.features[sat_sys][_sat] = feature_arr 
                     self.rinex_as_array[sat_sys][_sat][i_epoch, :] = vals[:]
                     self.timestamps[timestamp] = 1
                     _freq_num = freq_num if freq_num else np.nan
-                    self.rinex_freqs[sat_sys][_sat][i_epoch] = _freq_num
+                    self.rinex_glofreqnum[sat_sys][_sat][i_epoch] = _freq_num
                     self.features[sat_sys][_sat][i_epoch, :, :] = feature
 
                 tec = Tec(

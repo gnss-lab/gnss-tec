@@ -155,7 +155,7 @@ class Tec(object):
         if p1.shape != p2.shape:
             raise TecError('Phases are of different shapes')
         if p1.shape != glofn.shape:
-            raise TecError('Phases are of different shapes')
+            raise TecError('Phase and freqs are of different shapes')
         tec = np.zeros_like(p1)
         freq = {1:np.zeros(p1.shape), 2:np.zeros(p2.shape)}
         codes = {1: code1, 2: code2}
@@ -193,7 +193,7 @@ class Tec(object):
         if r1.shape != r2.shape:
             raise TecError('Ranges are of different shapes')
         tec = np.zeros_like(r1)
-        tec  =_calc_p_range_tec(p1, p2, code1, code2, 
+        tec = Tec._calc_p_range_tec(r1, r2, code1, code2, 
                               sat, glof)
         tec[np.logical_or(r1 == 0, r2 == 0)] = np.nan
         return tec

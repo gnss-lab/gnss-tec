@@ -763,7 +763,6 @@ class ObsFileV3(ObsFile):
 
         bands = self.bands[sat_system]
         band_priority = self.band_priority[sat_system]
-        print(bands, band_priority)
         phase_obs_codes = self.phase_obs_codes[sat_system]
         pr_obs_codes = self.prange_obs_codes[sat_system]
 
@@ -777,14 +776,10 @@ class ObsFileV3(ObsFile):
         for b in bands:
             phase_ot_indices[b] = code(phase_obs_codes[b], obs_types)
             pr_ot_indices[b] = code(pr_obs_codes[b], obs_types)
-        print(phase_ot_indices, pr_ot_indices)
         phase_indices = indices(band_priority, phase_ot_indices)
         pr_indices = indices(band_priority, pr_ot_indices)
         _phase = self._obsrevation_indices(phase_indices, pr_indices).phase
         _range = self._obsrevation_indices(phase_indices, pr_indices).pseudo_range
-        print(sat_system)
-        print(obs_types[_phase[1]], obs_types[_phase[2]])
-        print(obs_types[_range[1]], obs_types[_range[2]])
         return self._obsrevation_indices(phase_indices, pr_indices)
 
     def next_tec(self):

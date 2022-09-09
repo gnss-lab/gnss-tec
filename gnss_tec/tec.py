@@ -130,7 +130,6 @@ class Tec(object):
                     freq[b] = FREQUENCY[sat_sys][band]
                 else:
                     freq[b] = FREQUENCY[sat_sys][band](k)
-                    print(band, k)
         else:
             for b in 1, 2:
                 band = int(obs_code[b][1])

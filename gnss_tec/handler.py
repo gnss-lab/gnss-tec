@@ -5,10 +5,20 @@ from collections import defaultdict
 from .gnss import FREQUENCY, BAND_PRIORITY
 from .tec import Tec
 from .glo import collect_freq_nums
+from .rinex import ObsFileV3
 
 class RinexHandlerError(Exception):
-
     pass
+
+class RinexHandlerObservableCodes(Exception):
+    pass
+
+class RinexHandlerReaderNotSupport(Exception):
+    pass
+
+class RinexHandlerCouldNotAddFiled(Exception):
+    pass
+
 
 class RinexForSpace(object):
     
@@ -39,10 +49,22 @@ class RinexForSpace(object):
         self.times = times
         self.glofreqnums = glofreqnums
         self.dataframes = dict()
-        self.elaz = defaultdict(dict)
+        self.calculations = []
         if kwargs.get('convert_to_pd', False):
             self._convert_to_dataframes()
-
+            
+    @staticmethod
+    def rnx_to_handler(reader):
+        if not type(reader) is ObsFileV3:
+            raise RinexHandlerReaderNotSupport()
+        codes = reader.obs_types
+        features = reader.features
+        times = reader.timestamps
+        observations = reader.rinex_as_array
+        glofn = reader.rinex_glofreqnum
+        ts = [k for k in times]
+        hand = RinexForSpace(observations, codes, features, ts, glofn)
+        return hand
 
     def _convert_to_dataframes(self):
         dataframes = defaultdict(dict)
@@ -142,18 +164,53 @@ class RinexForSpace(object):
                     #    data = self.observations[s][sat][:, ic]
                     #   prange_codes[s][code] = np.count_nonzero(data)
                     
-    def add_elaz(self, site_pos, navs, xyz_to_el_az):
-        for sat_sys, sats_data  in self.observations.items():
-            for sat, data in sats_data.items():
-                self.elaz[sat_sys][sat] = []
-                for time in self.times:
-                    sat_pos = get_sat_pos(dt_time, satellite, navs)
-                    el_deg, az_deg = xyz_to_el_az(site_pos, sat_pos)
-                    self.elaz[sat_sys][sat].append((el_deg, az_deg))
-                
-            
 
-    def calc_tec_pd(self, combinations, tec_type):
+    def add_column(self, sat, data, col_name):
+        """
+        Parameters
+        ----------
+        sat : String
+        Three symbol sat name
+        
+        data : dict
+        Keys are datetimes and values are number (float or int)
+        
+        col_name : String
+        Name of column to be added
+        """
+        if not self.dataframes:
+            raise RinexHandlerCouldNotAddFiled('Calculate dataframes first')
+        s = sat[0].upper()
+        if not s in self.dataframes:
+            raise RinexHandlerCouldNotAddFiled(f'Unknow system {s}')
+        if not sat in set(self.dataframes[s]['sat']):
+            raise RinexHandlerCouldNotAddFiled(f'{sat} not in dataframe')
+        if not col_name in self.dataframes[s]:
+            self.dataframes[s][col_name] = 0
+        sdf = self.dataframes[s]
+        sdf.loc[sdf['sat'] == sat, col_name] = \
+            sdf.loc[sdf['sat'] == sat]['time'].map(data)
+        
+    def get_times(self, sat):
+        if not self.dataframes:
+            raise RinexHandlerCouldNotAddFiled('Calculate dataframes first')
+        s = sat[0].upper()
+        if not s in self.dataframes:
+            raise RinexHandlerCouldNotAddFiled(f'Unknow system {s}')
+        if not sat in set(self.dataframes[s]['sat']):
+            return []
+        sdf = self.dataframes[s]
+        ts = [d.to_pydatetime() for d in sdf.loc[sdf['sat'] == sat]['time']]
+        return ts
+
+    def get_sats(self):
+        sats = dict()
+        for s in self.dataframes:
+            sats[s] = list(set(self.dataframes[s]['sat']))
+        return sats
+
+
+    def calc_tec_pd(self, combinations):
         """Calculates phase tec 
 
         Parameters
@@ -164,28 +221,42 @@ class RinexForSpace(object):
         
         Example: {G: [(L1, L2), (L2, L5)], C: [(L2I, L7I)]}
         """
-        if tec_type == 'phase':
-            calc_tec = Tec.calc_phase_tec
-        elif tec_type == 'range':
-            calc_tec = Tec.calc_p_range_tec
-        else:
-            raise ValueError(f'Unknown tec type {tec_type}')
+        tec_type = defaultdict(list)
+        calculated = defaultdict(dict)
+        for s, comb in combinations.items():
+            for c in comb:
+                if len(c) != 2:
+                    msg = f'Need exact 2 codes, {c} given for {s}'
+                    raise RinexHandlerObservableCodes(msg)
+                comb_type = c[0][0] + c[1][0]
+                phase_range_codes = [ObsFileV3.phase_code, ObsFileV3.prange_code]
+                if c[0][0] != c[1][0] and not c[0][0] in phase_range_codes:
+                    msg = f'Calculation for obs {comb_type} is not defined. '
+                    msg += f'Only {phase_range_codes} are defined'
+                    raise RinexHandlerObservableCodes(msg)
+                if c[0][0] == ObsFileV3.phase_code:
+                    tec_type[s].append('phase')
+                if c[0][0] == ObsFileV3.prange_code:
+                    tec_type[s].append('range')
         for s in self.dataframes:
             if not s in combinations:
                 continue
             sdf = self.dataframes[s]
             codes = combinations[s]
             sats  = list(set(list(self.dataframes[s]['sat'])))
-            for pair in codes:
+            for ipair, pair in enumerate(codes):
                 if not (pair[0] in self.dataframes[s] and 
                         pair[1] in self.dataframes[s]):
+                    calculated[s][pair] = [None for sat in sats]
+                    warnings.warn(f'Could not calculate {pair}, check codes.')
                     continue
-
-                if tec_type == 'phase':
-                    tec_code = 'ptec'+pair[0]+pair[1]
+                tec_code = 'tec'+pair[0]+pair[1]
+                if tec_type[s][ipair] == 'phase':
+                    calc_tec = Tec.calc_phase_tec
                 else:
-                    tec_code = 'rtec'+pair[0]+pair[1]
+                    calc_tec = Tec.calc_p_range_tec
                 self.dataframes[s][tec_code] = 0
+                sats_calculated = []
                 for sat in sats:
                     obs1 = sdf.loc[sdf['sat'] == sat][pair[0]]
                     obs2 = sdf.loc[sdf['sat'] == sat][pair[1]]
@@ -194,3 +265,6 @@ class RinexForSpace(object):
                                      pair[0], pair[1], 
                                      sat, glofn)
                     sdf.loc[sdf['sat'] == sat, tec_code] = tecs
+                    sats_calculated.append(sat)
+                calculated[s][pair] = sats_calculated
+        self.calculations.append(calculated)

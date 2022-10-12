@@ -7,6 +7,7 @@ from .glo import collect_freq_nums
 from .gnss import BAND_PRIORITY
 from .rinex import ObsFileV2
 from .rinex import ObsFileV3
+from .rinex import ObsFileV4
 
 # General information
 __version__ = '1.1.2'
@@ -48,7 +49,8 @@ def rnx(file, band_priority=BAND_PRIORITY, glo_freq_nums=None):
 
     rinex_reader = {
         (2.0, 2.1, 2.11, 2.12): ObsFileV2,
-        (3.0, 3.01, 3.02, 3.03, 3.04, 3.05): ObsFileV3
+        (3.0, 3.01, 3.02, 3.03, 3.04, 3.05): ObsFileV3,
+        (4.0, ): ObsFileV4
     }
 
     reader = None

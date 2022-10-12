@@ -876,3 +876,18 @@ class ObsFileV3(ObsFile):
                     tec.p_range_code[b] = obs.code
                     tec.p_range[b] = obs.value
                 yield tec
+
+
+class ObsFileV4(ObsFileV3):
+    """Create an object to iterate over the records of RINEX observation
+    file. Yields Tec object on each iteration."""
+    channels = ObsFileV3.channels.copy()
+    channels.update({
+        QZSS: {
+            1: 'CESLXZB',
+            2: 'SLX',
+            5: 'IQXDPZ',
+            6: 'SLXEZ',
+        },
+    })
+

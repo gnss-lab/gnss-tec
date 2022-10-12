@@ -414,9 +414,9 @@ class ObsFileV3(ObsFile):
 
     bands = {
         GPS: (1, 2, 5),
-        GLO: (1, 2, 3),
+        GLO: (1, 2, 3, 4, 6),
         GAL: (1, 5, 6, 7, 8),
-        BDS: (2, 6, 7),
+        BDS: (1, 2, 5, 6, 7, 8),
         SBAS: (1, 5),
         QZSS: (1, 2, 5, 6),
         IRNSS: (5, 9),
@@ -432,6 +432,8 @@ class ObsFileV3(ObsFile):
             1: 'CP',
             2: 'CP',
             3: 'IQX',
+            4: 'ABX',
+            6: 'ABX'
         },
         GAL: {
             1: 'ABCXZ',
@@ -441,19 +443,22 @@ class ObsFileV3(ObsFile):
             8: 'IQX',
         },
         BDS: {
+            1: 'DPXSLZ',
             2: 'IQX',
-            6: 'IQX',
-            7: 'IQX',
+            5: 'DPX',
+            6: 'IQXDPZ',
+            7: 'IQXDPZ',
+            8: 'DPX',
         },
         SBAS: {
             1: 'C',
             5: 'IQX',
         },
         QZSS: {
-            1: 'CSLXZ',
+            1: 'CSLXZB',
             2: 'SLX',
-            5: 'IQX',
-            6: 'SLX',
+            5: 'IQXDPZ',
+            6: 'SLXEZ',
         },
         IRNSS: {
             5: 'ABCX',
@@ -717,7 +722,7 @@ class ObsFileV3(ObsFile):
 
                 # misunderstanding with band #1 in Compass/BeiDou
                 # see RINEX v3.n format for the details
-                if self.version >= 3.02 and sat_sys == BDS:
+                if self.version == 3.02 and sat_sys == BDS:
                     corrected_obs_types = list(sys_obs_types)
                     for i, t in enumerate(corrected_obs_types):
                         if t[1] == '1':

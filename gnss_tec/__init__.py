@@ -9,7 +9,7 @@ from .rinex import ObsFileV2
 from .rinex import ObsFileV3
 
 # General information
-__version__ = '1.1.1'
+__version__ = '1.1.2'
 __author__ = __maintainer__ = 'Ilya Zhivetiev'
 __email__ = 'i.zhivetiev@gnss-lab.org'
 
@@ -48,7 +48,7 @@ def rnx(file, band_priority=BAND_PRIORITY, glo_freq_nums=None):
 
     rinex_reader = {
         (2.0, 2.1, 2.11, 2.12): ObsFileV2,
-        (3.0, 3.01, 3.02, 3.03): ObsFileV3
+        (3.0, 3.01, 3.02, 3.03, 3.04, 3.05): ObsFileV3
     }
 
     reader = None

@@ -15,7 +15,7 @@ __author__ = __maintainer__ = 'Ilya Zhivetiev'
 __email__ = 'i.zhivetiev@gnss-lab.org'
 
 
-def rnx(file, band_priority=BAND_PRIORITY, glo_freq_nums=None):
+def rnx(file, **kwargs):
     """Return a reader object which will iterate over observation records in
     the given file. Each iteration will return Tec object. The file can be any
     object which supports iterator protocol.
@@ -23,6 +23,7 @@ def rnx(file, band_priority=BAND_PRIORITY, glo_freq_nums=None):
     Parameters
     ----------
     file : file-like object
+    timestep : int
     band_priority : dict
     glo_freq_nums : dict
 
@@ -31,6 +32,10 @@ def rnx(file, band_priority=BAND_PRIORITY, glo_freq_nums=None):
     reader : iterator
         Yields Tec object for each satellite of the epoch.
     """
+    timestep = kwargs.get('timestep', 30)
+    glo_freq_nums = kwargs.get('glo_freq_nums')
+    band_priority = kwargs.get('band_priority', BAND_PRIORITY)
+
     if glo_freq_nums is None:
         glo_freq_nums = {}
 
@@ -50,7 +55,7 @@ def rnx(file, band_priority=BAND_PRIORITY, glo_freq_nums=None):
     rinex_reader = {
         (2.0, 2.1, 2.11, 2.12): ObsFileV2,
         (3.0, 3.01, 3.02, 3.03, 3.04, 3.05): ObsFileV3,
-        (4.0, ): ObsFileV4
+        (4.0,): ObsFileV4
     }
 
     reader = None
@@ -61,9 +66,11 @@ def rnx(file, band_priority=BAND_PRIORITY, glo_freq_nums=None):
     if reader is None:
         raise Exception('Unknown RINEX version: {}'.format(rinex_version))
 
-    return reader(
-        file,
+    reader_kwargs = dict(
         version=rinex_version,
         band_priority=band_priority,
         glo_freq_nums=glo_freq_nums,
     )
+    if rinex_version >= 3: reader_kwargs.update(timestep=timestep)
+
+    return reader(file, **reader_kwargs)

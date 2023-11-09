@@ -504,14 +504,15 @@ class ObsFileV3(ObsFile):
         )
         self.rinex_as_array = None
         self.sat_sys_shape = None
-        self.timestamps = None
+        self.timestamps = self.get_timestamps()
         self.rinex_glofreqnum = None
         self.features = None
+        self.timestep = timestep
         if timestep and timespan:
             self._generate_obs_arrays(timespan, timestep)
 
     def _generate_obs_arrays(self, timespan, timestep):
-        ntimes = int(timespan/timestep)
+        ntimes = len(self.timestamps)
         self.rinex_as_array = {}
         self.sat_sys_shape = {}
         self.features = {}
@@ -519,7 +520,6 @@ class ObsFileV3(ObsFile):
         for s, codes in self.obs_types.items():
             self.rinex_as_array[s] = {}
             self.sat_sys_shape[s] = (ntimes, len(codes))
-            self.timestamps = {}
             self.rinex_glofreqnum[s] = {}
             self.features[s] = {}
 
@@ -616,6 +616,29 @@ class ObsFileV3(ObsFile):
             clock_offset = timedelta(0)
 
         return epoch, epoch_flag, num_of_sat, clock_offset
+
+    def get_timestamps(self):
+        """Reads file only for epochs and retruns them
+
+        Returns
+        -------
+        timestamps: list
+            list of timestamps presented in file
+        """
+        timestamps = []
+        while True:
+            try:
+                row = next(self.fh)
+            except StopIteration:
+                self.fh.seek(0)
+                self.skip_header()
+                return timestamps
+
+            if not self._is_epoch_record(row):
+                continue
+
+            timestamp, _, _, _ = self._parse_epoch_record(row)
+            timestamps.append(timestamp)
 
     def _parse_obs_record(self, row):
         """Parse observation record
@@ -806,7 +829,6 @@ class ObsFileV3(ObsFile):
              epoch_flag,
              num_of_sat,
              clock_offset) = self._parse_epoch_record(row)
-
             if epoch_flag > 1:
                 self.handle_event(epoch_flag, num_of_sat)
                 continue
@@ -829,7 +851,6 @@ class ObsFileV3(ObsFile):
                     except FetchSlotFreqNumError as err:
                         warnings.warn(str(err))
                         continue
-
                 if self.rinex_as_array:
                     _sat = observations.satellite
                     recs = observations.records
@@ -844,7 +865,6 @@ class ObsFileV3(ObsFile):
                         self.rinex_glofreqnum[sat_sys][_sat] = freq_arr
                         self.features[sat_sys][_sat] = feature_arr 
                     self.rinex_as_array[sat_sys][_sat][i_epoch, :] = vals[:]
-                    self.timestamps[timestamp] = 1
                     _freq_num = freq_num if freq_num else np.nan
                     self.rinex_glofreqnum[sat_sys][_sat][i_epoch] = _freq_num
                     self.features[sat_sys][_sat][i_epoch, :, :] = feature

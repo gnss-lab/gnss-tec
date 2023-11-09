@@ -10,3 +10,4 @@ _data/
 _design/
 _issues/
 _publication/
+__pycache__/

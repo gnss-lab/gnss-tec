@@ -70,8 +70,11 @@ class RinexForSpace(object):
         dataframes = defaultdict(dict)
         for s in self.observations:
             for sat in self.observations[s]:
+                obs_shape = self.observations[s][sat].shape[0]
+                time_shape = len(self.times)
                 if self.observations[s][sat].shape[0] != len(self.times):
-                    msg = f'For {sat}  observations and times differs in shape'
+                    msg = f'For {sat}  observations and times differs in ' \
+                        f'shape {obs_shape} and {time_shape}'
                     raise RinexHandlerError(msg)
                 d = {'system': [], 
                      'sat': [], 
